@@ -1,6 +1,12 @@
 # telemt-monthly
 
+[![CI](https://github.com/iceone/telemt-monthly/actions/workflows/ci.yml/badge.svg)](https://github.com/iceone/telemt-monthly/actions/workflows/ci.yml)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 Monthly per-user traffic billing for telemetry services. Polls a stats API, computes daily deltas, accumulates them into monthly totals, and optionally uploads results to Google Sheets.
+
+Based on [telemt](https://github.com/telemt/telemt) -- the original telemetry server.
 
 ## How it works
 
