@@ -27,11 +27,9 @@ AUTH_HEADER = os.environ.get("AUTH_HEADER", "")
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/var/lib/telemt-monthly"))
 OUT_DIR = Path(os.environ.get("OUT_DIR", "/var/log/telemt-monthly"))
 
-GSHEET_ENABLED = os.environ.get("GSHEET_ENABLED", "1") == "1"
+GSHEET_ENABLED = os.environ.get("GSHEET_ENABLED", "0") == "1"
 GSHEET_SA_KEY = Path(os.environ.get("GSHEET_SA_KEY", ""))
-GSHEET_SPREADSHEET_ID = os.environ.get(
-    "GSHEET_SPREADSHEET_ID", "YOUR_SPREADSHEET_ID"
-)
+GSHEET_SPREADSHEET_ID = os.environ.get("GSHEET_SPREADSHEET_ID", "")
 GSHEET_SHEET_NAME = os.environ.get("GSHEET_SHEET_NAME", "Totals")
 
 DRY_RUN = "--dry-run" in sys.argv
@@ -303,6 +301,12 @@ def gsheet_upload_totals(totals_path: Path, token: str,
 def main() -> None:
     if DRY_RUN:
         info("dry-run mode — no state files will be modified")
+
+    if GSHEET_ENABLED:
+        if not GSHEET_SPREADSHEET_ID:
+            die("GSHEET_SPREADSHEET_ID is required when GSHEET_ENABLED=1")
+        if not str(GSHEET_SA_KEY):
+            die("GSHEET_SA_KEY is required when GSHEET_ENABLED=1")
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)

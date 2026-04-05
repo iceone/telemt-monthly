@@ -13,8 +13,7 @@ from threading import Thread
 from unittest.mock import patch, MagicMock
 
 # Import module under test
-import importlib
-tm = importlib.import_module("telemt-monthly")
+import telemt_monthly as tm
 
 
 class TempDirMixin:
