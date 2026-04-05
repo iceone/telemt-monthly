@@ -8,6 +8,12 @@ STATE_DIR="${STATE_DIR:-/var/lib/telemt-monthly}"
 OUT_DIR="${OUT_DIR:-/var/log/telemt-monthly}"
 LOCK_FILE="${STATE_DIR}/.telemt-monthly.lock"
 
+# --- Google Sheets settings ---
+GSHEET_ENABLED="${GSHEET_ENABLED:-1}"
+GSHEET_SA_KEY="${GSHEET_SA_KEY:-}"
+GSHEET_SPREADSHEET_ID="${GSHEET_SPREADSHEET_ID:-YOUR_SPREADSHEET_ID}"
+GSHEET_SHEET_NAME="${GSHEET_SHEET_NAME:-Totals}"
+
 DRY_RUN=0
 if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=1
@@ -38,9 +44,153 @@ monthly_log="$OUT_DIR/${month}.csv"
 monthly_totals="$OUT_DIR/${month}-totals.csv"
 
 cleanup() {
-  rm -f "$tmp_json" "$tmp_tsv" "$tmp_agg"
+  rm -f "$tmp_json" "$tmp_tsv" "$tmp_agg" "$_gsheet_tmp_token" "$_gsheet_tmp_jwt" 2>/dev/null || true
 }
 trap cleanup EXIT
+_gsheet_tmp_token="$(mktemp)"
+_gsheet_tmp_jwt="$(mktemp)"
+
+# --- Google Sheets: JWT auth + upload functions ---
+
+# Generate a Google OAuth2 access token from a service account JSON key.
+# Uses openssl for RS256 signing — no Python/SDK needed.
+_b64url() {
+  openssl base64 -e -A | tr '+/' '-_' | tr -d '=\n'
+}
+
+gsheet_get_token() {
+  local sa_key="$1"
+  local sa_email scope aud now exp header payload
+  local b64_header b64_payload sig_input signature jwt
+  local private_key_file
+
+  sa_email="$(jq -r '.client_email' "$sa_key")"
+  private_key_file="$(mktemp)"
+  jq -r '.private_key' "$sa_key" > "$private_key_file"
+
+  scope="https://www.googleapis.com/auth/spreadsheets"
+  aud="https://oauth2.googleapis.com/token"
+  now="$(date +%s)"
+  exp=$(( now + 3600 ))
+
+  header='{"alg":"RS256","typ":"JWT"}'
+  payload="$(printf '{"iss":"%s","scope":"%s","aud":"%s","iat":%d,"exp":%d}' \
+    "$sa_email" "$scope" "$aud" "$now" "$exp")"
+
+  b64_header="$(printf '%s' "$header" | _b64url)"
+  b64_payload="$(printf '%s' "$payload" | _b64url)"
+
+  sig_input="${b64_header}.${b64_payload}"
+  signature="$(printf '%s' "$sig_input" | \
+    openssl dgst -sha256 -sign "$private_key_file" -binary | _b64url)"
+
+  rm -f "$private_key_file"
+
+  jwt="${sig_input}.${signature}"
+
+  # Request access token; show error body on failure
+  local http_code
+  http_code="$(curl -sS -X POST "$aud" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}" \
+    -o "$_gsheet_tmp_token" \
+    -w "%{http_code}")"
+
+  if [[ "$http_code" != "200" ]]; then
+    echo "ERROR: Google OAuth2 token request failed (HTTP $http_code):" >&2
+    cat "$_gsheet_tmp_token" >&2
+    return 1
+  fi
+
+  jq -r '.access_token' "$_gsheet_tmp_token"
+}
+
+# Ensure the target sheet exists; create it if missing.
+gsheet_ensure_sheet() {
+  local access_token="$1"
+  local spreadsheet_id="$2"
+  local sheet_name="$3"
+  local sheets_api="https://sheets.googleapis.com/v4/spreadsheets"
+
+  # Check if sheet already exists
+  local meta
+  meta="$(curl -sS -X GET \
+    "${sheets_api}/${spreadsheet_id}?fields=sheets.properties.title" \
+    -H "Authorization: Bearer ${access_token}")"
+
+  if echo "$meta" | jq -e --arg s "$sheet_name" '.sheets[]? | select(.properties.title == $s)' > /dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "[gsheet] Sheet '${sheet_name}' not found — creating..."
+  local resp
+  resp="$(curl -sS -X POST \
+    "${sheets_api}/${spreadsheet_id}:batchUpdate" \
+    -H "Authorization: Bearer ${access_token}" \
+    -H "Content-Type: application/json" \
+    -d "{\"requests\":[{\"addSheet\":{\"properties\":{\"title\":\"${sheet_name}\"}}}]}")"
+
+  if echo "$resp" | jq -e '.error' > /dev/null 2>&1; then
+    echo "ERROR: Failed to create sheet '${sheet_name}':" >&2
+    echo "$resp" | jq '.error' >&2
+    return 1
+  fi
+  echo "[gsheet] Sheet '${sheet_name}' created."
+}
+
+# Push totals CSV to Google Sheets (clear sheet, then write all rows).
+gsheet_upload_totals() {
+  local totals_file="$1"
+  local access_token="$2"
+  local spreadsheet_id="$3"
+  local sheet_name="$4"
+
+  local sheets_api="https://sheets.googleapis.com/v4/spreadsheets"
+  local range="${sheet_name}!A1"
+
+  # Ensure target sheet exists
+  gsheet_ensure_sheet "$access_token" "$spreadsheet_id" "$sheet_name"
+
+  # Build JSON payload from CSV: [ [row1col1, row1col2, ...], [row2col1, ...], ... ]
+  local values_json
+  values_json="$(awk -F',' '
+    BEGIN { printf "[" }
+    NR > 1 { printf "," }
+    {
+      printf "["
+      for (i = 1; i <= NF; i++) {
+        if (i > 1) printf ","
+        gsub(/"/, "\\\"", $i)
+        printf "\"%s\"", $i
+      }
+      printf "]"
+    }
+    END { printf "]" }
+  ' "$totals_file")"
+
+  # Clear existing data
+  local resp
+  resp="$(curl -sS -X POST \
+    "${sheets_api}/${spreadsheet_id}/values/${sheet_name}:clear" \
+    -H "Authorization: Bearer ${access_token}" \
+    -H "Content-Type: application/json" \
+    -d '{}')"
+
+  # Write new data
+  resp="$(curl -sS -X PUT \
+    "${sheets_api}/${spreadsheet_id}/values/${range}?valueInputOption=RAW" \
+    -H "Authorization: Bearer ${access_token}" \
+    -H "Content-Type: application/json" \
+    -d "{\"range\":\"${range}\",\"majorDimension\":\"ROWS\",\"values\":${values_json}}")"
+
+  if echo "$resp" | jq -e '.error' > /dev/null 2>&1; then
+    echo "ERROR: Failed to write to Google Sheets:" >&2
+    echo "$resp" | jq '.error' >&2
+    return 1
+  fi
+
+  echo "[gsheet] Uploaded $(( $(wc -l < "$totals_file") - 1 )) users to sheet '${sheet_name}'"
+}
 
 # --- 2) Fetch stats from API ---
 if [[ -n "$AUTH_HEADER" ]]; then
@@ -124,6 +274,13 @@ if [[ ! -f "$prev_tsv" ]]; then
     fi
   }
   _rebuild_totals
+
+  # Upload baseline totals to Google Sheets
+  if (( GSHEET_ENABLED )) && (( ! DRY_RUN )); then
+    token="$(gsheet_get_token "$GSHEET_SA_KEY")"
+    gsheet_upload_totals "$monthly_totals" "$token" "$GSHEET_SPREADSHEET_ID" "$GSHEET_SHEET_NAME"
+  fi
+
   exit 0
 fi
 
@@ -202,7 +359,13 @@ else
   mv "$tmp_agg" "$monthly_totals"
 fi
 
-# --- 9) Update baseline ---
+# --- 9) Upload totals to Google Sheets ---
+if (( GSHEET_ENABLED )) && (( ! DRY_RUN )); then
+  token="$(gsheet_get_token "$GSHEET_SA_KEY")"
+  gsheet_upload_totals "$monthly_totals" "$token" "$GSHEET_SPREADSHEET_ID" "$GSHEET_SHEET_NAME"
+fi
+
+# --- 10) Update baseline ---
 if (( ! DRY_RUN )); then
   cp "$tmp_tsv" "$prev_tsv"
   cp "$tmp_tsv" "$curr_tsv"
