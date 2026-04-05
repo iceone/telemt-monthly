@@ -307,7 +307,7 @@ def main() -> None:
     if GSHEET_ENABLED:
         if not GSHEET_SPREADSHEET_ID:
             die("GSHEET_SPREADSHEET_ID is required when GSHEET_ENABLED=1")
-        if not str(GSHEET_SA_KEY):
+        if not os.environ.get("GSHEET_SA_KEY"):
             die("GSHEET_SA_KEY is required when GSHEET_ENABLED=1")
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
