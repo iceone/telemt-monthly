@@ -239,7 +239,13 @@ uv run ruff check --fix .    # auto-fix
 ### Tests
 
 ```bash
+# Run on current Python
 uv run python -m unittest test_telemt_monthly -v
+
+# Run full matrix (Python 3.8–3.13 + lint) via tox
+uv run tox
 ```
 
 Unit tests covering: TSV/CSV I/O, delta computation, counter resets, month boundaries, totals aggregation, scientific notation parsing, Google Sheets helpers.
+
+CI runs the same tox matrix on every push and pull request via GitHub Actions.

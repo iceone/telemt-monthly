@@ -8,7 +8,22 @@ dependencies = []
 [dependency-groups]
 dev = [
     "ruff>=0.15.9",
+    "tox>=4.25.0",
+    "tox-uv>=1.13.1",
 ]
+
+[tool.tox]
+env_list = ["lint", "py38", "py39", "py310", "py311", "py312", "py313"]
+
+[tool.tox.env_run_base]
+description = "Run unit tests"
+skip_install = true
+commands = [["python", "-m", "unittest", "test_telemt_monthly", "-v"]]
+
+[tool.tox.env.lint]
+description = "Run ruff linter"
+deps = ["ruff>=0.15.9"]
+commands = [["ruff", "check", "."]]
 
 [tool.ruff]
 target-version = "py38"
