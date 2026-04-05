@@ -242,6 +242,19 @@ class TestRebuildTotals(TempDirMixin, unittest.TestCase):
         users = [r[1] for r in rows]
         self.assertEqual(users, ["big", "medium", "small"])
 
+    def test_scientific_notation_in_delta(self):
+        """Deltas written in scientific notation (e.g. by awk) must parse correctly."""
+        log = self._make_log([
+            ["2026-04-01", "alice", "4.91986e+09", "4919860000", "ok"],
+            ["2026-04-02", "alice", "1.5e+08", "5069860000", "ok"],
+        ])
+        totals = self.tmpdir / "totals.csv"
+        with patch.object(tm, "MONTH", "2026-04"):
+            tm.rebuild_totals(log, totals)
+
+        rows = tm.read_csv_rows(totals)
+        self.assertEqual(int(rows[0][2]), 4919860000 + 150000000)
+
     def test_zero_deltas_only(self):
         log = self._make_log([
             ["2026-04-01", "alice", "0", "500", "baseline"],

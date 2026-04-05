@@ -153,7 +153,7 @@ def rebuild_totals(monthly_log: Path, monthly_totals: Path) -> None:
     for row in read_csv_rows(monthly_log):
         # date, username, delta_bytes, total_bytes, note
         user = row[1]
-        delta = int(row[2])
+        delta = int(float(row[2]))
         sums[user] = sums.get(user, 0) + delta
 
     rows = []
