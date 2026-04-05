@@ -3,14 +3,11 @@
 
 import csv
 import json
-import os
 import shutil
 import tempfile
 import unittest
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from threading import Thread
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Import module under test
 import telemt_monthly as tm
@@ -55,7 +52,7 @@ class TestReadWriteTsv(TempDirMixin, unittest.TestCase):
         path = self.tmpdir / "sorted.tsv"
         tm.write_tsv(path, {"charlie": 3, "alice": 1, "bob": 2})
         lines = path.read_text().strip().splitlines()
-        users = [l.split("\t")[0] for l in lines]
+        users = [line.split("\t")[0] for line in lines]
         self.assertEqual(users, ["alice", "bob", "charlie"])
 
     def test_large_octets(self):

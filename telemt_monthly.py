@@ -2,6 +2,7 @@
 """Telemt monthly traffic billing: accumulates per-user traffic deltas,
 writes monthly CSV logs/totals, and optionally uploads to Google Sheets."""
 
+import base64
 import csv
 import fcntl
 import json
@@ -11,10 +12,9 @@ import subprocess
 import sys
 import tempfile
 import time
-import base64
-import urllib.request
 import urllib.error
 import urllib.parse
+import urllib.request
 from datetime import date
 from pathlib import Path
 
@@ -312,7 +312,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # 1) Flock
-    lock_fd = open(LOCK_FILE, "w")
+    lock_fd = open(LOCK_FILE, "w")  # noqa: SIM115
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:

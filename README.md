@@ -198,10 +198,48 @@ month,username,month_bytes,month_gb
 - **Counter-reset handling** logs the upper bound of lost traffic for manual review
 - **Dry-run mode** previews all changes without modifying state
 
-## Tests
+## Development
+
+### Install uv
+
+**macOS:**
 
 ```bash
-python3 -m unittest test_telemt_monthly -v
+# Homebrew
+brew install uv
+
+# or standalone installer
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Linux:**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+After installation, restart your shell or run `source $HOME/.local/bin/env`.
+
+### Setup
+
+```bash
+# Clone and install dev dependencies
+git clone <repo-url>
+cd telemt-monthly
+uv sync
+```
+
+### Lint
+
+```bash
+uv run ruff check .          # check
+uv run ruff check --fix .    # auto-fix
+```
+
+### Tests
+
+```bash
+uv run python -m unittest test_telemt_monthly -v
 ```
 
 Unit tests covering: TSV/CSV I/O, delta computation, counter resets, month boundaries, totals aggregation, scientific notation parsing, Google Sheets helpers.
