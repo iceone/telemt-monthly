@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Unit tests for telemt-monthly billing script."""
 
+from __future__ import annotations
+
 import csv
 import json
 import shutil

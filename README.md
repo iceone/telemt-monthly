@@ -15,7 +15,7 @@ Counter resets (e.g. service restarts) are detected and logged. Month boundaries
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.8+
 - `openssl` CLI (used for JWT signing when Google Sheets is enabled)
 - No third-party Python packages (stdlib only)
 

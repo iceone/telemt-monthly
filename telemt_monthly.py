@@ -2,6 +2,8 @@
 """Telemt monthly traffic billing: accumulates per-user traffic deltas,
 writes monthly CSV logs/totals, and optionally uploads to Google Sheets."""
 
+from __future__ import annotations
+
 import base64
 import csv
 import fcntl
