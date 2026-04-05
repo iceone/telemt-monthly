@@ -4,9 +4,9 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Monthly per-user traffic billing for telemetry services. Polls a stats API, computes daily deltas, accumulates them into monthly totals, and optionally uploads results to Google Sheets.
+Monthly per-user traffic billing for [telemt](https://github.com/telemt/telemt) MTProxy. Polls the telemt stats API, computes daily traffic deltas, accumulates them into monthly totals, and optionally uploads results to Google Sheets.
 
-Based on [telemt](https://github.com/telemt/telemt) -- the original telemetry server.
+Billing companion for [telemt](https://github.com/telemt/telemt) -- a fast MTProxy for Telegram written in Rust + Tokio.
 
 ## How it works
 

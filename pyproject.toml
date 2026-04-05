@@ -1,7 +1,7 @@
 [project]
 name = "telemt-monthly"
 version = "0.1.0"
-description = "Monthly per-user traffic billing with Google Sheets integration"
+description = "Monthly per-user traffic billing for telemt MTProxy"
 requires-python = ">=3.8"
 dependencies = []
 
