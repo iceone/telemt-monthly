@@ -25,7 +25,33 @@ Counter resets (e.g. service restarts) are detected and logged. Month boundaries
 - `openssl` CLI (used for JWT signing when Google Sheets is enabled)
 - No third-party Python packages (stdlib only)
 
-## Installation
+## Deployment
+
+Deploy to a remote Linux server with one command:
+
+```bash
+# Basic (local CSV only, cron every 30 min)
+make deploy HOST=root@10.0.0.1
+
+# With Google Sheets
+make deploy HOST=root@10.0.0.1 GSHEET_SPREADSHEET_ID=your_id
+make upload-key HOST=root@10.0.0.1 GSHEET_SA_KEY=~/sa-key.json
+
+# Custom cron schedule (every hour)
+make deploy HOST=root@10.0.0.1 CRON_SCHEDULE="0 * * * *"
+```
+
+After deploy:
+
+```bash
+make dry-run HOST=root@10.0.0.1   # test without changes
+make status HOST=root@10.0.0.1    # view last runs + totals
+make logs HOST=root@10.0.0.1      # tail remote log
+```
+
+Run `make help` to see all targets.
+
+### Manual installation
 
 ```bash
 cp telemt_monthly.py /usr/local/bin/telemt-monthly
